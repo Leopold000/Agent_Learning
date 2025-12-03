@@ -7,6 +7,7 @@
     "single": "node 01-single-agent/run.js",
     "workflow": "node 02-workflow/run.js",
     "multi": "node 03-multi-agent/run.js",
+    "multi-demo": "node multi-agent-demo/orchestrator.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
