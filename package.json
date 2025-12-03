@@ -1,0 +1,20 @@
+{
+  "name": "agent_learning",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "single": "node 01-single-agent/run.js",
+    "workflow": "node 02-workflow/run.js",
+    "multi": "node 03-multi-agent/run.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@langchain/core": "^1.1.1",
+    "@langchain/ollama": "^1.0.3",
+    "@langchain/openai": "^1.1.3"
+  }
+}
