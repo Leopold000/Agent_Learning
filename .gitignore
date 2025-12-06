@@ -26,4 +26,5 @@ node_modules/
 
 # 日志文件
 *.log
-
+Agent_class/data/vector_store_lancedb
+Agent_class/data/vector_store_test

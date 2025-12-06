@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(node:*)",
+      "WebSearch",
+      "Bash(npm view:*)",
+      "Bash(npm info @lancedb/lancedb)",
+      "Bash(npm explore @lancedb/lancedb -- npm run docs)",
+      "Bash(dir:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
