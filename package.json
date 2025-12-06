@@ -8,21 +8,29 @@
     "workflow": "node 02-workflow/run.js",
     "multi": "node 03-multi-agent/run.js",
     "multi-demo": "node multi-agent-demo/orchestrator.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "smart-agent": "cd Agent_class/08_RAG_tools && node run_smart_agent.js",
+    "test-smart-agent": "cd Agent_class/08_RAG_tools && node test_features.js",
+    "demo-conversation": "cd Agent_class/08_RAG_tools && node demo_conversation.js",
+    "test-knowledge-search": "cd Agent_class/08_RAG_tools && node test_knowledge_search.js"
   },
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
     "@lancedb/lancedb": "^0.22.3",
+    "@langchain/anthropic": "^1.2.3",
     "@langchain/core": "^1.1.1",
     "@langchain/ollama": "^1.0.3",
     "@langchain/openai": "^1.1.3",
+    "cors": "^2.8.5",
     "docx": "^9.5.1",
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "langchain": "^1.1.5",
     "mammoth": "^1.11.0",
     "marked": "^17.0.1",
+    "node-fetch": "^3.3.2",
     "pdf-parse": "^2.4.5"
   }
 }

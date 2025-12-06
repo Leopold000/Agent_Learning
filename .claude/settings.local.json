@@ -3,7 +3,10 @@
     "allow": [
       "Bash(node chat_rag.js:*)",
       "Bash(node:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(npm install:*)",
+      "WebSearch",
+      "Bash(ollama list:*)"
     ],
     "deny": [],
     "ask": []
