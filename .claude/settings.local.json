@@ -6,7 +6,8 @@
       "Bash(timeout:*)",
       "Bash(npm install:*)",
       "WebSearch",
-      "Bash(ollama list:*)"
+      "Bash(ollama list:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
