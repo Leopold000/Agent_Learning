@@ -7,11 +7,6 @@ import {
   RunnableWithMessageHistory,
 } from "@langchain/core/runnables";
 import { search, initDB } from "./rag_search.js";
-import {
-  intelligentToolCall,
-  formatToolResult,
-  shouldUseTool
-} from "./tool_manager.js";
 
 // 颜色
 const C = {
@@ -119,40 +114,9 @@ const KNOWLEDGE_KEYWORDS = [
   "描述",
 ];
 
-// 工具调用相关关键词（优先于知识库检索）
-const TOOL_CALL_KEYWORDS = [
-  "计算", "算", "等于", "加", "减", "乘", "除", "平方", "开方", "表达式",
-  "转换", "换算", "摄氏度", "华氏度", "米", "英尺", "公里", "英里", "美元", "人民币",
-  "用户", "员工", "同事", "项目", "任务", "公司", "部门", "信息", "列表", "查询",
-  "状态", "运行", "健康", "内存", "性能", "系统"
-];
-
-// 判断是否需要工具调用（优先判断）
-function shouldCallTool(query) {
-  const queryLower = query.toLowerCase().trim();
-
-  // 检查是否包含工具调用关键词
-  for (const keyword of TOOL_CALL_KEYWORDS) {
-    if (queryLower.includes(keyword.toLowerCase())) {
-      console.log(C.cyan + `🔧 检测到工具关键词: "${keyword}" - 可能需要工具调用` + C.reset);
-
-      // 进一步使用工具管理模块判断
-      return shouldUseTool(query);
-    }
-  }
-
-  return false;
-}
-
 // 判断是否需要检索知识库
 function shouldRetrieveKnowledge(query) {
   const queryLower = query.toLowerCase().trim();
-
-  // 0. 首先检查是否需要工具调用（工具调用优先）
-  if (shouldCallTool(query)) {
-    console.log(C.cyan + `🔧 问题需要工具调用 - 跳过知识库检索` + C.reset);
-    return false; // 工具调用时不需要检索知识库
-  }
 
   // 1. 检查是否是通用问题（不需要检索）
   for (const [category, phrases] of Object.entries(GENERAL_QUESTIONS)) {
@@ -210,17 +174,14 @@ function shouldRetrieveKnowledge(query) {
 // 使用LLM进行意图识别（更准确但稍慢）
 async function analyzeIntentWithLLM(query) {
   try {
-    const systemPrompt = `你是一个意图分类器。请分析用户问题是否需要检索知识库来回答，或者是否需要调用工具。
+    const systemPrompt = `你是一个意图分类器。请分析用户问题是否需要检索知识库来回答。
 
 知识库内容：公司开发规范、代码示例、技术文档等。
-可用工具：计算器、单位转换、用户查询、项目查询、任务查询、公司信息查询等。
 
 请严格按照以下JSON格式回答，不要添加任何额外文字：
 {{"needs_retrieval": true, "reason": "原因说明"}}
 或者
-{{"needs_retrieval": false, "reason": "原因说明"}}
-或者
-{{"needs_tool": true, "reason": "原因说明"}}`;
+{{"needs_retrieval": false, "reason": "原因说明"}}`;
 
     const intentPrompt = ChatPromptTemplate.fromMessages([
       ["system", systemPrompt],
@@ -264,40 +225,14 @@ async function analyzeIntentWithLLM(query) {
   return shouldRetrieveKnowledge(query);
 }
 
-// ================== 智能检索和工具调用系统 ==================
+// ================== 智能检索系统 ==================
 
-// 智能检索和工具调用函数
+// 智能检索函数
 async function intelligentRetrieve(query, useLLM = false) {
   console.log(C.cyan + "\n🤔 分析问题意图..." + C.reset);
   console.log(C.dim + `🔧 当前模式: ${useLLM ? "LLM模式" : "规则模式"}` + C.reset);
   console.log(C.dim + `🔧 用户问题: ${query}` + C.reset);
 
-  // 首先检查是否需要工具调用（工具调用优先）
-  const needsTool = shouldCallTool(query);
-
-  if (needsTool) {
-    console.log(C.cyan + "🛠️ 判断为工具调用问题，准备调用工具..." + C.reset);
-
-    try {
-      const toolResult = await intelligentToolCall(query);
-
-      if (toolResult) {
-        return {
-          needsRetrieval: false,
-          needsTool: true,
-          toolResult: toolResult,
-          docs: `（工具调用结果：${formatToolResult(toolResult)}）`,
-          results: [],
-        };
-      } else {
-        console.log(C.magenta + "⚠️ 工具调用失败或未找到合适工具，尝试知识库检索" + C.reset);
-      }
-    } catch (toolError) {
-      console.error(C.magenta + "❌ 工具调用异常: " + toolError.message + C.reset);
-    }
-  }
-
-  // 如果不是工具调用问题，继续判断是否需要知识库检索
   let needsRetrieval;
   if (useLLM) {
     console.log(C.dim + "🔧 使用LLM进行意图分析..." + C.reset);
@@ -313,7 +248,6 @@ async function intelligentRetrieve(query, useLLM = false) {
     console.log(C.green + "✅ 判断为通用问题，无需检索知识库" + C.reset);
     return {
       needsRetrieval: false,
-      needsTool: false,
       docs: "（当前问题为通用问题，直接回答）",
       results: [],
     };
@@ -336,7 +270,6 @@ async function intelligentRetrieve(query, useLLM = false) {
 
     return {
       needsRetrieval: true,
-      needsTool: false,
       docs: docList,
       results: results,
     };
@@ -344,7 +277,6 @@ async function intelligentRetrieve(query, useLLM = false) {
     console.error(C.magenta + "❌ 检索失败: " + searchError.message + C.reset);
     return {
       needsRetrieval: false,
-      needsTool: false,
       docs: "（知识库检索失败，将基于通用知识回答）",
       results: [],
     };
@@ -405,37 +337,14 @@ const ragChat = new RunnableWithMessageHistory({
 
 // 智能响应函数
 async function getIntelligentAIResponse(query, retrievalResult, sessionId) {
-  const { needsRetrieval, needsTool, toolResult, docs } = retrievalResult;
+  const { needsRetrieval, docs } = retrievalResult;
 
   console.log(C.green + "🤖 AI：" + C.reset);
 
   try {
     let stream;
 
-    if (needsTool && toolResult) {
-      // 如果是工具调用，直接显示工具结果
-      console.log(C.cyan + "🛠️ 工具调用结果：" + C.reset);
-
-      if (toolResult.success) {
-        const formattedResult = formatToolResult(toolResult);
-        console.log(formattedResult);
-
-        // 将工具结果作为上下文，让AI进行解释或总结
-        const toolContext = `用户问题：${query}\n工具调用结果：${formattedResult}`;
-
-        stream = await generalChat.stream(
-          { input: `${toolContext}\n\n请基于以上工具调用结果，对用户的问题进行回答或总结。` },
-          { configurable: { sessionId } }
-        );
-      } else {
-        console.log(C.magenta + `❌ 工具调用失败: ${toolResult.error}` + C.reset);
-        // 工具调用失败时，尝试基于通用知识回答
-        stream = await generalChat.stream(
-          { input: query },
-          { configurable: { sessionId } }
-        );
-      }
-    } else if (needsRetrieval) {
+    if (needsRetrieval) {
       // 使用RAG链（有知识库）
       stream = await ragChat.stream(
         { input: query, docs: docs },
@@ -450,16 +359,14 @@ async function getIntelligentAIResponse(query, retrievalResult, sessionId) {
     }
 
     let response = "";
-    if (stream) {
-      for await (const chunk of stream) {
-        if (chunk?.content) {
-          process.stdout.write(chunk.content);
-          response += chunk.content;
-        }
+    for await (const chunk of stream) {
+      if (chunk?.content) {
+        process.stdout.write(chunk.content);
+        response += chunk.content;
       }
     }
 
-    if (response.length === 0 && !(needsTool && toolResult)) {
+    if (response.length === 0) {
       console.log("（AI没有生成响应）");
     }
 
@@ -476,9 +383,8 @@ async function main() {
   console.log(C.cyan + "\n✨ 智能RAG助手启动！" + C.reset);
   line();
 
-  console.log(C.blue + "🧠 特性：智能检索决策 + 多轮对话 + 流式输出 + 工具调用" + C.reset);
+  console.log(C.blue + "🧠 特性：智能检索决策 + 多轮对话 + 流式输出" + C.reset);
   console.log(C.blue + "📊 模式：混合（规则 + LLM意图分析）" + C.reset);
-  console.log(C.blue + "🛠️ 支持工具：计算器、单位转换、数据查询、系统状态等" + C.reset);
   line();
 
   try {
@@ -498,14 +404,8 @@ async function main() {
   console.log("\n💡 使用方法：");
   console.log("- 通用问题（问候、闲聊）：直接回答");
   console.log("- 专业问题（技术、规范）：检索知识库后回答");
-  console.log("- 工具问题（计算、查询、转换）：自动调用工具");
   console.log("- 输入 'mode llm' 切换为LLM意图分析");
   console.log("- 输入 'mode rule' 切换为规则判断");
-  console.log("\n🛠️ 工具调用示例：");
-  console.log("  • 计算：\"2+3等于多少\"，\"计算sin(30)\"");
-  console.log("  • 转换：\"20摄氏度等于多少华氏度\"，\"100美元等于多少人民币\"");
-  console.log("  • 查询：\"有哪些用户\"，\"张三的信息\"，\"项目状态\"");
-  console.log("  • 系统：\"系统状态\"，\"内存使用情况\"");
   line();
 
   try {
